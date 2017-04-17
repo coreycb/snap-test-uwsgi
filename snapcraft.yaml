@@ -1,0 +1,56 @@
+name: keystone
+version: ocata
+summary: OpenStack Identity Service (keystone)
+description: |
+  Keystone provides authentication, authorization and service discovery
+  mechanisms via HTTP primarily for use by projects in the OpenStack
+  family. It is most commonly deployed as an HTTP interface to existing
+  identity systems, such as LDAP.
+confinement: classic
+grade: devel
+
+apps:
+  uwsgi:
+    #command: env $SNAP/bin/uwsgi --master --die-on-term --emperor $SNAP/uwsgi --logto $SNAP_COMMON/uwsgi.log
+    command: env $SNAP/bin/uwsgi --http :9090 --wsgi-file $SNAP/uwsgi/hello.py --logto $SNAP_COMMON/uwsgi.log -H /snap/keystone/current --no-site #--pythonpath /snap/keystone/current/lib/python2.7/site-packages/
+    daemon: simple
+parts:
+  keystone:
+    after: [python]
+    plugin: python
+    python-version: python2
+    source: http://tarballs.openstack.org/keystone/keystone-master.tar.gz
+    python-packages:
+      - pymysql
+      - uwsgi
+      - git+https://github.com/openstack/snap.openstack#egg=snap.openstack
+    constraints: https://raw.githubusercontent.com/openstack/requirements/master/upper-constraints.txt
+    build-packages:
+      - gcc
+      - libffi-dev
+      - libssl-dev
+    stage-packages: [nginx]
+    stage:
+      - -usr/bin/2to3
+      - -usr/bin/pydoc
+      - -usr/bin/python2.7
+      - -usr/lib/python2.7
+    install: |
+      mkdir $SNAPCRAFT_PART_INSTALL/uwsgi
+      cat > $SNAPCRAFT_PART_INSTALL/uwsgi/hello.py << EOF
+      #!/usr/bin/env python
+      def application(env, start_response):
+          start_response('200 OK', [('Content-Type','text/html')])
+          return [b"Hello World"]
+      EOF
+  python:
+     source: https://www.python.org/ftp/python/2.7.13/Python-2.7.13.tar.xz
+     plugin: autotools
+     configflags:
+       - --prefix=/usr
+     build-packages:
+       - libssl-dev
+     prime:
+       - -usr/include
+     install:
+       $SNAPCRAFT_PART_INSTALL/usr/bin/python2 -m ensurepip
